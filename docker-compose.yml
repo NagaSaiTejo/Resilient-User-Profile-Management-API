@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: ${PORT}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      EXTERNAL_SERVICE_URL: ${EXTERNAL_SERVICE_URL}
+      EXTERNAL_SERVICE_TIMEOUT_MS: ${EXTERNAL_SERVICE_TIMEOUT_MS}
+      CIRCUIT_BREAKER_FAILURE_THRESHOLD: ${CIRCUIT_BREAKER_FAILURE_THRESHOLD}
+      CIRCUIT_BREAKER_RESET_TIMEOUT_MS: ${CIRCUIT_BREAKER_RESET_TIMEOUT_MS}
+      CIRCUIT_BREAKER_HALF_OPEN_SUCCESS_THRESHOLD: ${CIRCUIT_BREAKER_HALF_OPEN_SUCCESS_THRESHOLD}
+      RETRY_MAX_ATTEMPTS: ${RETRY_MAX_ATTEMPTS}
+      RETRY_BASE_DELAY_MS: ${RETRY_BASE_DELAY_MS}
+    depends_on:
+      db:
+        condition: service_healthy
+      mock_enrichment_service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  db:
+    image: mysql:8
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - ./initdb:/docker-entrypoint-initdb.d
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u$$MYSQL_USER", "-p$$MYSQL_PASSWORD"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mock_enrichment_service:
+    build:
+      context: ./mock-service
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+    environment:
+      MOCK_PORT: 8081
+      MOCK_SERVICE_FAILURE_RATE: ${MOCK_SERVICE_FAILURE_RATE}
+      MOCK_SERVICE_DELAY_MS: ${MOCK_SERVICE_DELAY_MS}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  db_data:

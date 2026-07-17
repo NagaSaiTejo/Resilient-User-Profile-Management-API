@@ -1,0 +1,12 @@
+{
+  "name": "mock-enrichment-service",
+  "version": "1.0.0",
+  "description": "Mock Enrichment Service",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
